@@ -62,7 +62,7 @@ def save_pdb(structure, output_file):
 
 # 🟢 Main Function
 def main():
-    pdb_file = "src/data/R3K_16_AU.pdb"  # Replace with your input PDB file path
+    pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
     rise = 4.155  
     twist = 22.830    
     num_units = 40  # Number of asymmetric units
@@ -74,7 +74,7 @@ def main():
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
     # Save the helical assembly
-    save_pdb(assembly, "src/data/helical_assembly_4.pdb")
+    save_pdb(assembly, "src/data/helical_assembly.pdb")
 
 if __name__ == "__main__":
     main()
