@@ -60,9 +60,27 @@ def save_pdb(structure, output_file):
     io.save(output_file)
     print(f"Helical assembly saved as {output_file}")
 
+def displace_protein(structure, displacement_vector):
+    """
+    Displace all atoms in a protein structure by a given translation vector.
+    
+    Args:
+        structure (Bio.PDB.Structure.Structure): The protein structure to translate.
+        displacement_vector (array-like): A 3D translation vector [dx, dy, dz] in Ångströms.
+
+    Returns:
+        Bio.PDB.Structure.Structure: Translated protein structure.
+    """
+    for atom in structure.get_atoms():
+        new_coord = atom.get_coord() + displacement_vector
+        atom.set_coord(new_coord)
+    
+    return structure
+
 # 🟢 Main Function
 def main():
-    pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
+    #pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
+    pdb_file = "src/data/R3K_16_AU.pdb"  # Replace with your input PDB file path
     rise = 4.155  
     twist = 22.830    
     num_units = 40  # Number of asymmetric units
@@ -70,11 +88,13 @@ def main():
     # Load asymmetric unit
     structure = load_pdb(pdb_file)
 
+    translation_vector = np.array([-336.4, -336.4, -336.4])
+    structure = displace_protein(structure, translation_vector)
     # Create helical assembly
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
     # Save the helical assembly
-    save_pdb(assembly, "src/data/helical_assembly.pdb")
+    save_pdb(assembly, "src/data/R3K_N16_helical_assembly.pdb")
 
 if __name__ == "__main__":
     main()
