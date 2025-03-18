@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from Bio.PDB import PDBParser, PDBIO, Structure, Model, Chain, Residue
 import numpy as np
 from core.helical_symmetry import compute_helical_parameters  # Make sure this import is correct
+from core.energy import *  # Make sure this import is correct
 
 # 🟢 Load PDB File
 def load_pdb(file_path):
@@ -77,24 +78,59 @@ def displace_protein(structure, displacement_vector):
     
     return structure
 
+def move_toward_origin(structure, distance: float):
+    """
+    Move a protein structure toward the origin by a specified distance.
+
+    Args:
+        structure (Bio.PDB.Structure.Structure): The protein structure to move.
+        distance (float): The distance to move toward the origin (in Ångströms).
+
+    Returns:
+        Bio.PDB.Structure.Structure: Translated protein structure.
+    """
+    # 🟢 Compute center of mass (COM)
+    atom_coords = np.array([atom.get_coord() for atom in structure.get_atoms()])
+    center_of_mass = atom_coords.mean(axis=0)
+
+    # 🟢 Compute unit direction vector from COM to the origin
+    direction = -center_of_mass / np.linalg.norm(center_of_mass)
+
+    # 🟢 Compute translation vector
+    translation_vector = direction * distance
+
+    # 🟢 Apply translation
+    for atom in structure.get_atoms():
+        new_coord = atom.get_coord() + translation_vector
+        atom.set_coord(new_coord)
+
+    return structure
+
 # 🟢 Main Function
 def main():
     #pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
     pdb_file = "src/data/R3K_16_AU.pdb"  # Replace with your input PDB file path
     rise = 4.155  
     twist = 22.830    
-    num_units = 40  # Number of asymmetric units
+    num_units = 2  # Number of asymmetric units
 
     # Load asymmetric unit
     structure = load_pdb(pdb_file)
 
+    #Center protein with rotation asix at origin
     translation_vector = np.array([-336.4, -336.4, -336.4])
     structure = displace_protein(structure, translation_vector)
+
+    #Displace protein from center of mass to origin by the given distance
+    structure = move_toward_origin(structure, 0)
     # Create helical assembly
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
     # Save the helical assembly
-    save_pdb(assembly, "src/data/R3K_N16_helical_assembly.pdb")
+    save_pdb(assembly, "src/data/R3K_N16_helical_assembly_3.pdb")
 
+    # Compute Rosetta energy
+    energy = compute_rosetta_energy(assembly)
+    print(f"Rosetta Energy Score: {energy:.2f}")
 if __name__ == "__main__":
     main()
