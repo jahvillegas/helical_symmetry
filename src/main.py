@@ -127,10 +127,10 @@ def main():
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
     # Save the helical assembly
-    save_pdb(assembly, "src/data/R3K_N16_helical_assembly_3.pdb")
+    save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
 
     # Compute Rosetta energy
-    energy = compute_rosetta_energy(assembly)
-    print(f"Rosetta Energy Score: {energy:.2f}")
+    #energy = compute_rosetta_energy(assembly, minimize=True)
+    #print(f"Rosetta Energy Score: {energy:.2f}")
 if __name__ == "__main__":
     main()
