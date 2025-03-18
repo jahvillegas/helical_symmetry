@@ -112,7 +112,7 @@ def main():
     pdb_file = "src/data/R3K_16_AU.pdb"  # Replace with your input PDB file path
     rise = 4.155  
     twist = 22.830    
-    num_units = 40  # Number of asymmetric units
+    num_units = 2  # Number of asymmetric units
 
     # Load asymmetric unit
     structure = load_pdb(pdb_file)
@@ -122,7 +122,7 @@ def main():
     structure = displace_protein(structure, translation_vector)
 
     #Displace protein from center of mass to origin by the given distance
-    structure = move_toward_origin(structure, 50)
+    structure = move_toward_origin(structure, 0)
     # Create helical assembly
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
@@ -130,7 +130,7 @@ def main():
     save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
 
     # Compute Rosetta energy
-    #energy = compute_rosetta_energy(assembly, minimize=True)
+    energy = compute_rosetta_energy(assembly, minimize=True)
     #print(f"Rosetta Energy Score: {energy:.2f}")
 if __name__ == "__main__":
     main()
