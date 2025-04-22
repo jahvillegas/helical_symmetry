@@ -111,12 +111,8 @@ def main():
     #pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
     pdb_file = "src/data/7jm3.pdb"  # Replace with your input PDB file path
 
-
-    pitch = 42
-    n_units = 21
-
-    rise = pitch / n_units  
-    twist = 360 / n_units
+    rise = 1.96
+    twist = 17.1 
     num_units = 20  # Number of asymmetric units
 
     # Load asymmetric unit
@@ -127,7 +123,7 @@ def main():
     structure = displace_protein(structure, translation_vector)
 
     #Displace protein from center of mass to origin by the given distance
-    structure = move_toward_origin(structure, 0)
+    structure = move_toward_origin(structure, 20)
     # Create helical assembly
     assembly = create_helical_assembly(structure, twist, rise, num_units)
 
