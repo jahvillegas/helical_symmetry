@@ -1,0 +1,68 @@
+import copy
+import random
+import math
+
+def monte_carlo_optimization(structure, initial_twist, initial_rise, num_units, kT=1.0, num_iterations=50):
+    current_twist = initial_twist
+    current_rise = initial_rise
+    current_structure = create_helical_assembly(structure, current_twist, current_rise, num_units)
+    current_energy = compute_rosetta_energy(current_structure, minimize=False)
+
+    best_structure = current_structure
+    best_energy = current_energy
+    best_twist = current_twist
+    best_rise = current_rise
+
+    for i in range(num_iterations):
+        # Randomly perturb twist and rise
+        new_twist = current_twist + random.uniform(-1.0, 1.0)
+        new_rise = current_rise + random.uniform(-0.2, 0.2)
+
+        new_structure = create_helical_assembly(structure, new_twist, new_rise, num_units)
+        new_energy = compute_rosetta_energy(new_structure, minimize=False)
+
+        delta_E = new_energy - current_energy
+
+        # Metropolis acceptance criterion
+        if delta_E < 0 or random.random() < math.exp(-delta_E / kT):
+            current_twist = new_twist
+            current_rise = new_rise
+            current_structure = new_structure
+            current_energy = new_energy
+
+            if new_energy < best_energy:
+                best_structure = copy.deepcopy(new_structure)
+                best_energy = new_energy
+                best_twist = new_twist
+                best_rise = new_rise
+
+        print(f"Iter {i+1}: E = {current_energy:.2f}, twist = {current_twist:.2f}, rise = {current_rise:.2f}")
+
+    return best_structure, best_energy, best_twist, best_rise
+    # Initial helical parameters
+    rise = 1.96
+    twist = 17.1 
+    num_units = 20
+
+    # Load asymmetric unit
+    structure = load_pdb(pdb_file)
+
+    # Center protein
+    translation_vector = np.array([-200, -200, -200])
+    structure = displace_protein(structure, translation_vector)
+    structure = move_toward_origin(structure, 20)
+
+    # Run Monte Carlo to optimize twist/rise
+    assembly, best_energy, best_twist, best_rise = monte_carlo_optimization(
+        structure,
+        initial_twist=twist,
+        initial_rise=rise,
+        num_units=num_units,
+        kT=1.0,
+        num_iterations=50
+    )
+
+    # Save the best assembly
+    save_pdb(assembly, "src/data/M1_assembly_MC.pdb")
+    print(f"Best Energy: {best_energy:.2f}")
+    print(f"Best Twist: {best_twist:.2f}, Best Rise: {best_rise:.2f}")
