@@ -154,7 +154,7 @@ def main():
         save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
     
         # Compute Rosetta energy
-        energy_m  = compute_rosetta_energy(assembly, minimize=False)
+        energy_m  = compute_rosetta_energy(assembly)
 
         selected_dof = random.randint(0, len(dof) - 1)
         dof_old = dof[selected_dof]
@@ -176,7 +176,7 @@ def main():
         # Save the helical assembly
         save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
 
-        energy_n = compute_rosetta_energy(assembly, minimize=False)
+        energy_n = compute_rosetta_energy(assembly)
         delta = energy_n - energy_m
         
  
