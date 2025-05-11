@@ -113,61 +113,53 @@ def move_toward_origin(structure, distance: float):
 
 # 🟢 Main Function
 def main():
-    #pdb_file = "src/data/M1_fibril.pdb"  # Replace with your input PDB file path
-    pdb_file = "src/data/M1_fibril.pdb"  # Replace with your input PDB file path
-
-    #rise = 4.155  
-    #twist = 22.830    
-    #displacement = 0
+    pdb_file = "src/data/M1_fibril.pdb"
 
     rise = 5.972 
     twist = 32.818    
     displacement = 15
 
     n_steps = 20
-    best_energy = 10000000000000000000000
+    best_energy = float("inf")  # cleaner than a huge number
 
     dof = [rise, twist, displacement]
     dr_max = [1, 5, 1]
-    #dr_max = [0, 0, 0]
 
     with open('src/data/monte_carlo.csv', 'w', newline='') as f:
-    writer = csv.writer(f)
-    writer.writerow(["Step", "Energy", "DOF"])
+        writer = csv.writer(f)
+        writer.writerow(["Step", "Energy", "DOF"])
 
-    for i in range(n_steps):
-        ...
-        writer.writerow([i, energy_m, dof])
+        for i in range(n_steps):
+            # Load asymmetric unit
+            structure = load_pdb(pdb_file)
 
+            # Center protein at origin
+            translation_vector = np.array([-336.4, -336.4, -336.4])
+            structure = displace_protein(structure, translation_vector)
 
-    num_units = 9  # Number of asymmetric units
+            # Displace along origin vector
+            structure = move_toward_origin(structure, dof[2])
 
-    for i in range(n_steps): 
+            # Create helical assembly
+            assembly = create_helical_assembly(structure, dof[1], dof[0], num_units=9)
 
-    
-        # Load asymmetric unit
-        structure = load_pdb(pdb_file)
-    
-        #Center protein with rotation asix at origin
-        translation_vector = np.array([-336.4, -336.4, -336.4])
-        structure = displace_protein(structure, translation_vector)
-    
-        #Displace protein from center of mass to origin by the given distance
-        structure = move_toward_origin(structure, dof[2])
-        # Create helical assembly
-        assembly = create_helical_assembly(structure, dof[1], dof[0], num_units)
-    
-        # Save the helical assembly
-        save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
-    
-        # Compute Rosetta energy
-        energy_m  = compute_rosetta_energy(assembly)
+            # Save current PDB
+            save_pdb(assembly, "src/data/R3K_N16_helical_assembly_4.pdb")
 
-        selected_dof = random.randint(0, len(dof) - 1)
-        dof_old = dof[selected_dof]
-        change =  random.uniform(-1 * dr_max[selected_dof], dr_max[selected_dof])
-        dof[selected_dof] = dof[selected_dof] + change
-    
+            # Compute energy
+            energy_m = compute_rosetta_energy(assembly)
+
+            # Log to CSV
+            writer.writerow([i, energy_m, dof.copy()])
+
+            # Monte Carlo mutation
+            selected_dof = random.randint(0, len(dof) - 1)
+            old_value = dof[selected_dof]
+            change = random.uniform(-1 * dr_max[selected_dof], dr_max[selected_dof])
+            dof[selected_dof] += change
+
+            # You can add Metropolis acceptance test here if needed
+
         # Load asymmetric unit
         structure = load_pdb(pdb_file)
     
