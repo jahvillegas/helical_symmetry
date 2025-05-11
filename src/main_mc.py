@@ -131,7 +131,14 @@ def main():
     dr_max = [1, 5, 1]
     #dr_max = [0, 0, 0]
 
-    f = open('src/data/monte_carlo.csv', 'w')
+    with open('src/data/monte_carlo.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(["Step", "Energy", "DOF"])
+
+    for i in range(n_steps):
+        ...
+        writer.writerow([i, energy_m, dof])
+
 
     num_units = 9  # Number of asymmetric units
 
