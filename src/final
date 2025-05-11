@@ -1,68 +1,167 @@
-import copy
+import sys
+import os
 import random
 import math
+import numpy as np
+from Bio.PDB import PDBParser, PDBIO, Structure, Model, Chain, Residue
+from core.helical_symmetry import compute_helical_parameters  # Ensure correct import
+from core.energy import *  # Ensure correct import
 
-def monte_carlo_optimization(structure, initial_twist, initial_rise, num_units, kT=1.0, num_iterations=50):
-    current_twist = initial_twist
-    current_rise = initial_rise
-    current_structure = create_helical_assembly(structure, current_twist, current_rise, num_units)
-    current_energy = compute_rosetta_energy(current_structure, minimize=False)
+import csv
 
-    best_structure = current_structure
-    best_energy = current_energy
-    best_twist = current_twist
-    best_rise = current_rise
+# 🟢 Load PDB File
+def load_pdb(file_path):
+    parser = PDBParser()
+    structure = parser.get_structure("asymmetric_unit", file_path)
+    return structure
 
-    for i in range(num_iterations):
-        # Randomly perturb twist and rise
-        new_twist = current_twist + random.uniform(-1.0, 1.0)
-        new_rise = current_rise + random.uniform(-0.2, 0.2)
+# 🟢 Create Helical Assembly
+def create_helical_assembly(structure, twist, rise, num_units):
+    rotation_matrix, translation_vector = compute_helical_parameters(twist, rise)
+    model = structure[0]
+    assembly = Structure.Structure("helical_assembly")
+    new_model = Model.Model(0)
+    atom_serial = 1  # Track unique atom serial numbers
 
-        new_structure = create_helical_assembly(structure, new_twist, new_rise, num_units)
-        new_energy = compute_rosetta_energy(new_structure, minimize=False)
+    for i in range(num_units):
+        new_chain = Chain.Chain(chr(65 + i))  # Use A, B, C,... for chain IDs
+        for residue in model.get_residues():
+            # 🟢 Create a unique residue for each copy
+            new_residue = Residue.Residue(
+                (" ", residue.get_id()[1] + i * 100, " "),  # Unique residue ID
+                residue.get_resname(),
+                residue.get_segid()
+            )
+            for atom in residue.get_atoms():
+                # Transform coordinates
+                coord = atom.get_coord()
+                transformed_coord = np.dot(np.linalg.matrix_power(rotation_matrix, i), coord) + i * translation_vector
 
-        delta_E = new_energy - current_energy
+                # 🟢 Create a new atom with a unique serial number
+                new_atom = atom.copy()
+                new_atom.set_coord(transformed_coord)
+                new_atom.serial_number = atom_serial  # Unique serial number
+                atom_serial += 1  # Increment serial number
 
-        # Metropolis acceptance criterion
-        if delta_E < 0 or random.random() < math.exp(-delta_E / kT):
-            current_twist = new_twist
-            current_rise = new_rise
-            current_structure = new_structure
-            current_energy = new_energy
+                # Add transformed atom to new residue
+                new_residue.add(new_atom)
 
-            if new_energy < best_energy:
-                best_structure = copy.deepcopy(new_structure)
-                best_energy = new_energy
-                best_twist = new_twist
-                best_rise = new_rise
+            # Add new residue to chain
+            new_chain.add(new_residue)
 
-        print(f"Iter {i+1}: E = {current_energy:.2f}, twist = {current_twist:.2f}, rise = {current_rise:.2f}")
+        # Add the new chain to the model
+        new_model.add(new_chain)
 
-    return best_structure, best_energy, best_twist, best_rise
-    # Initial helical parameters
-    rise = 1.96
-    twist = 17.1 
-    num_units = 20
+    # Add the model to the assembly
+    assembly.add(new_model)
+    return assembly
 
-    # Load asymmetric unit
-    structure = load_pdb(pdb_file)
+# 🟢 Save Transformed PDB
+def save_pdb(structure, output_file):
+    io = PDBIO()
+    io.set_structure(structure)
+    io.save(output_file)
+    print(f"Helical assembly saved as {output_file}")
 
-    # Center protein
-    translation_vector = np.array([-200, -200, -200])
-    structure = displace_protein(structure, translation_vector)
-    structure = move_toward_origin(structure, 20)
+# 🟢 Displace protein structure by a given translation vector
+def displace_protein(structure, displacement_vector):
+    for atom in structure.get_atoms():
+        new_coord = atom.get_coord() + displacement_vector
+        atom.set_coord(new_coord)
+    return structure
 
-    # Run Monte Carlo to optimize twist/rise
-    assembly, best_energy, best_twist, best_rise = monte_carlo_optimization(
-        structure,
-        initial_twist=twist,
-        initial_rise=rise,
-        num_units=num_units,
-        kT=1.0,
-        num_iterations=50
-    )
+# 🟢 Move protein structure toward the origin by a specified distance
+def move_toward_origin(structure, distance: float):
+    atom_coords = np.array([atom.get_coord() for atom in structure.get_atoms()])
+    center_of_mass = atom_coords.mean(axis=0)
+    direction = -center_of_mass / np.linalg.norm(center_of_mass)
+    translation_vector = direction * distance
 
-    # Save the best assembly
-    save_pdb(assembly, "src/data/M1_assembly_MC.pdb")
-    print(f"Best Energy: {best_energy:.2f}")
-    print(f"Best Twist: {best_twist:.2f}, Best Rise: {best_rise:.2f}")
+    for atom in structure.get_atoms():
+        new_coord = atom.get_coord() + translation_vector
+        atom.set_coord(new_coord)
+
+    return structure
+
+# 🟢 Monte Carlo Optimization Loop
+def monte_carlo_optimization(pdb_file, n_steps, dr_max, Temp, num_units):
+    f = open('src/data/monte_carlo.csv', 'w')
+    
+    # Initial parameter values (rise, twist, displacement)
+    rise = 5.972
+    twist = 32.818
+    displacement = 15
+
+    dof = [rise, twist, displacement]
+    best_energy = 10000000000000000000000  # Large initial energy value
+    
+    for i in range(n_steps):
+        # Load the asymmetric unit PDB file
+        structure = load_pdb(pdb_file)
+
+        # Center the protein
+        translation_vector = np.array([-336.4, -336.4, -336.4])
+        structure = displace_protein(structure, translation_vector)
+        
+        # Move toward the origin by a specified distance
+        structure = move_toward_origin(structure, dof[2])
+
+        # Create helical assembly
+        assembly = create_helical_assembly(structure, dof[1], dof[0], num_units)
+
+        # Save the helical assembly
+        save_pdb(assembly, "src/data/R3K_N16_helical_assembly.pdb")
+
+        # Compute energy of the current structure (using Rosetta or similar)
+        energy_m = compute_rosetta_energy(assembly, minimize=False)
+
+        # Choose a random degree of freedom to change
+        selected_dof = random.randint(0, len(dof) - 1)
+        dof_old = dof[selected_dof]
+        
+        # Apply a random change
+        change = random.uniform(-1 * dr_max[selected_dof], dr_max[selected_dof])
+        dof[selected_dof] = dof[selected_dof] + change
+        
+        # Load the structure again
+        structure = load_pdb(pdb_file)
+        structure = displace_protein(structure, translation_vector)
+        structure = move_toward_origin(structure, dof[2])
+        
+        # Create a new helical assembly with modified parameters
+        assembly = create_helical_assembly(structure, dof[1], dof[0], num_units)
+        
+        # Save the new helical assembly
+        save_pdb(assembly, "src/data/R3K_N16_helical_assembly_modified.pdb")
+
+        # Compute the energy for the new structure
+        energy_n = compute_rosetta_energy(assembly, minimize=False)
+
+        # Calculate the energy difference
+        delta = energy_n - energy_m
+
+        # Apply Metropolis acceptance criterion
+        if delta > 0:
+            zeta = random.uniform(0, 1)
+            metropolis = math.exp((-1 * delta) / Temp) > zeta
+            if not metropolis:
+                dof[selected_dof] = dof_old
+
+        # Write the results to the CSV file
+        writer = csv.writer(f)
+        writer.writerow([i, energy_m, dof])
+
+    f.close()
+
+# 🟢 Main function to run the Monte Carlo optimization
+def main():
+    pdb_file = "src/data/R3K_16_AU.pdb"  # Input PDB file
+    n_steps = 20  # Number of Monte Carlo steps
+    dr_max = [1, 5, 1]  # Max changes for rise, twist, displacement
+    Temp = 300  # Temperature for the Metropolis criterion
+    num_units = 9  # Number of asymmetric units
+    
+    monte_carlo_optimization(pdb_file, n_steps, dr_max, Temp, num_units)
+
+if __name__ == "__main__":
+    main()
