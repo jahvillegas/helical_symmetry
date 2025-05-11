@@ -113,8 +113,8 @@ def move_toward_origin(structure, distance: float):
 
 # 🟢 Main Function
 def main():
-    #pdb_file = "src/data/R3K_16_AU_centered.pdb"  # Replace with your input PDB file path
-    pdb_file = "src/data/R3K_16_AU.pdb"  # Replace with your input PDB file path
+    #pdb_file = "src/data/M1_fibril.pdb"  # Replace with your input PDB file path
+    pdb_file = "src/data/M1_fibril.pdb"  # Replace with your input PDB file path
 
     #rise = 4.155  
     #twist = 22.830    
